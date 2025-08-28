@@ -20,6 +20,8 @@ env:
   RG_NAME: jeet-rg
   STORAGE_ACCOUNT: tfstatefilestodoapp
   CONTAINER_NAME: terraformcontainer
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+
 
 jobs:
   terraform-plan:
@@ -46,15 +48,15 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform -chdir=environment/${{ github.event.inputs.environment }} init \
+          terraform -chdir=environment/${{ env.ENVIRONMENT }} init \
             -backend-config="resource_group_name=${{ env.RG_NAME }}" \
             -backend-config="storage_account_name=${{ env.STORAGE_ACCOUNT }}" \
             -backend-config="container_name=${{ env.CONTAINER_NAME }}" \
-            -backend-config="key=${{ github.event.inputs.environment }}.terraform.tfstate"
+            -backend-config="key=${{ env.ENVIRONMENT }}.terraform.tfstate"
 
       - name: Terraform Plan
         run: |
-          terraform -chdir=environment/${{ github.event.inputs.environment }} plan -out=tfplan
+          terraform -chdir=environment/${{ env.ENVIRONMENT }} plan -out=tfplan
 
   tf-scanning:
     name: "Terraform Security Scans"
@@ -68,17 +70,17 @@ jobs:
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          working_directory: environment/${{ github.event.inputs.environment }}
+          working_directory: environment/${{ env.ENVIRONMENT }}
 
       - name: Run tflint
         uses: terraform-linters/tflint-action@v0.4.0
         with:
-          working_directory: environment/${{ github.event.inputs.environment }}
+          working_directory: environment/${{ env.ENVIRONMENT }}
 
       - name: Run checkov
         uses: bridgecrewio/checkov-action@v12
         with:
-          directory: environment/${{ github.event.inputs.environment }}
+          directory: environment/${{ env.ENVIRONMENT }}
 
   terraform-apply:
     name: "Terraform Apply"
@@ -106,12 +108,12 @@ jobs:
 
       - name: Terraform Init
         run: |
-          terraform -chdir=environment/${{ github.event.inputs.environment }} init \
+          terraform -chdir=environment/${{ env.ENVIRONMENT }} init \
             -backend-config="resource_group_name=${{ env.RG_NAME }}" \
             -backend-config="storage_account_name=${{ env.STORAGE_ACCOUNT }}" \
             -backend-config="container_name=${{ env.CONTAINER_NAME }}" \
-            -backend-config="key=${{ github.event.inputs.environment }}.terraform.tfstate"
+            -backend-config="key=${{ env.ENVIRONMENT }}.terraform.tfstate"
 
       - name: Terraform Apply
         run: |
-          terraform -chdir=environment/${{ github.event.inputs.environment }} apply -auto-approve tfplan
+          terraform -chdir=environment/${{ env.ENVIRONMENT }} apply -auto-approve tfplan
