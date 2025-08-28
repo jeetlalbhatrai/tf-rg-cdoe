@@ -39,14 +39,16 @@ jobs:
           terraform_version: 1.8.5
 
       - name: Terraform Init
-        run: terraform -chdir=environment/${{ github.event.inputs.environment }} init \
-          -backend-config="resource_group_name=jeet-rg" \
-          -backend-config="storage_account_name=tfstatefilestodoapp" \
-          -backend-config="container_name=terraformcontainer" \
-          -backend-config="key=${{ github.event.inputs.environment }}.terraform.tfstate"
+        run: |
+          terraform -chdir=environment/${{ github.event.inputs.environment }} init \
+            -backend-config="resource_group_name=jeet-rg" \
+            -backend-config="storage_account_name=tfstatefilestodoapp" \
+            -backend-config="container_name=terraformcontainer" \
+            -backend-config="key=${{ github.event.inputs.environment }}.terraform.tfstate"
 
       - name: Terraform Plan
-        run: terraform -chdir=environment/${{ github.event.inputs.environment }} plan -out=tfplan
+        run: |
+          terraform -chdir=environment/${{ github.event.inputs.environment }} plan -out=tfplan
 
   tf-scanning:
     name: "Terraform Security Scans"
@@ -72,7 +74,7 @@ jobs:
     name: "Terraform Apply"
     needs: [terraform-plan, tf-scanning]
     runs-on: ubuntu-latest
-    environment: production   # 👈 Protect this environment with approval in GitHub UI
+    environment: production   # 👈 Configure this in GitHub UI for manual approval
     permissions:
       id-token: write
       contents: read
@@ -93,11 +95,13 @@ jobs:
           terraform_version: 1.8.5
 
       - name: Terraform Init
-        run: terraform -chdir=environment/${{ github.event.inputs.environment }} init \
-          -backend-config="resource_group_name=jeet-rg" \
-          -backend-config="storage_account_name=tfstatefilestodoapp" \
-          -backend-config="container_name=terraformcontainer" \
-          -backend-config="key=${{ github.event.inputs.environment }}.terraform.tfstate"
+        run: |
+          terraform -chdir=environment/${{ github.event.inputs.environment }} init \
+            -backend-config="resource_group_name=jeet-rg" \
+            -backend-config="storage_account_name=tfstatefilestodoapp" \
+            -backend-config="container_name=terraformcontainer" \
+            -backend-config="key=${{ github.event.inputs.environment }}.terraform.tfstate"
 
       - name: Terraform Apply
-        run: terraform -chdir=environment/${{ github.event.inputs.environment }} apply -auto-approve tfplan
+        run: |
+          terraform -chdir=environment/${{ github.event.inputs.environment }} apply -auto-approve tfplan
