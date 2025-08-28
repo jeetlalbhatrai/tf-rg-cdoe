@@ -1,0 +1,98 @@
+name: Terraform Deployment
+
+on:
+  push:
+    branches:
+      - main
+      
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Select environment (dev/prod)"
+        required: true
+        default: "dev"
+      scanning_required:
+        description: "Run Terraform Security Scans?"
+        required: true
+        default: "true"
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+  SCANNING_REQUIRED: ${{ github.event.inputs.scanning_required || 'true' }}
+
+jobs:
+  terraform-plan:
+    name: "Terraform Init & Plan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.8.5
+
+      - name: Terraform Init
+        run: terraform -chdir=environment/${{ env.ENVIRONMENT }} init \
+          -backend-config="resource_group_name=jeet-rg" \
+          -backend-config="storage_account_name=tfstatefilestodoapp" \
+          -backend-config="container_name=terraformcontainer" \
+          -backend-config="key=${{ env.ENVIRONMENT }}.terraform.tfstate"
+
+      - name: Terraform Plan
+        run: terraform -chdir=environment/${{ env.ENVIRONMENT }} plan -out=tfplan
+
+  tf-scanning:
+    name: "Terraform Security Scans"
+    needs: terraform-plan
+    if: ${{ env.SCANNING_REQUIRED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install tfsec
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+      - name: Run tfsec
+        run: tfsec .
+
+      - name: Install tflint
+        run: |
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+      - name: Run tflint
+        run: tflint .
+
+      - name: Install checkov
+        run: pip install checkov
+      - name: Run checkov
+        run: checkov -d .
+
+  terraform-apply:
+    name: "Terraform Apply"
+    needs: [terraform-plan, tf-scanning]
+    runs-on: ubuntu-latest
+    environment: production   # 👈 GitHub environment with manual approval enabled
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.8.5
+
+      - name: Terraform Init
+        run: terraform -chdir=environment/${{ env.ENVIRONMENT }} init \
+          -backend-config="resource_group_name=jeet-rg" \
+          -backend-config="storage_account_name=tfstatefilestodoapp" \
+          -backend-config="container_name=terraformcontainer" \
+          -backend-config="key=${{ env.ENVIRONMENT }}.terraform.tfstate"
+
+      - name: Terraform Apply
+        run: terraform -chdir=environment/${{ env.ENVIRONMENT }} apply -auto-approve tfplan
