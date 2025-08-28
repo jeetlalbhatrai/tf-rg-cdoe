@@ -15,6 +15,12 @@ on:
         required: true
         default: "true"
 
+env:
+  TF_VERSION: 1.8.5
+  RG_NAME: jeet-rg
+  STORAGE_ACCOUNT: tfstatefilestodoapp
+  CONTAINER_NAME: terraformcontainer
+
 jobs:
   terraform-plan:
     name: "Terraform Init & Plan"
@@ -36,14 +42,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.8.5
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Init
         run: |
           terraform -chdir=environment/${{ github.event.inputs.environment }} init \
-            -backend-config="resource_group_name=jeet-rg" \
-            -backend-config="storage_account_name=tfstatefilestodoapp" \
-            -backend-config="container_name=terraformcontainer" \
+            -backend-config="resource_group_name=${{ env.RG_NAME }}" \
+            -backend-config="storage_account_name=${{ env.STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ env.CONTAINER_NAME }}" \
             -backend-config="key=${{ github.event.inputs.environment }}.terraform.tfstate"
 
       - name: Terraform Plan
@@ -61,20 +67,24 @@ jobs:
 
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: environment/${{ github.event.inputs.environment }}
 
       - name: Run tflint
         uses: terraform-linters/tflint-action@v0.4.0
+        with:
+          working_directory: environment/${{ github.event.inputs.environment }}
 
       - name: Run checkov
         uses: bridgecrewio/checkov-action@v12
         with:
-          directory: .
+          directory: environment/${{ github.event.inputs.environment }}
 
   terraform-apply:
     name: "Terraform Apply"
     needs: [terraform-plan, tf-scanning]
     runs-on: ubuntu-latest
-    environment: production   # 👈 Configure this in GitHub UI for manual approval
+    environment: production   # 👈 Configure in GitHub UI for manual approval
     permissions:
       id-token: write
       contents: read
@@ -92,14 +102,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.8.5
+          terraform_version: ${{ env.TF_VERSION }}
 
       - name: Terraform Init
         run: |
           terraform -chdir=environment/${{ github.event.inputs.environment }} init \
-            -backend-config="resource_group_name=jeet-rg" \
-            -backend-config="storage_account_name=tfstatefilestodoapp" \
-            -backend-config="container_name=terraformcontainer" \
+            -backend-config="resource_group_name=${{ env.RG_NAME }}" \
+            -backend-config="storage_account_name=${{ env.STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ env.CONTAINER_NAME }}" \
             -backend-config="key=${{ github.event.inputs.environment }}.terraform.tfstate"
 
       - name: Terraform Apply
