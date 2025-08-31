@@ -1,5 +1,9 @@
 name: "infra test"
 on: workflow_dispatch
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   terraform-jobs:
     name: to run on self hosted agent
