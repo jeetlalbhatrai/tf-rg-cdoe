@@ -35,7 +35,26 @@ jobs:
         run: terraform plan -no-color -input=false
         continue-on-error: true
         working-directory: environment/dev    
-          
+  terraform-apply:
+    runs-on: self-tf
+    needs: terraform-init-plan
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+      - name: Azure Login
+        uses: Azure/login@v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }} 
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }} 
+      - name: Terraform Init
+        id: init
+        run: terraform init -input=false  
+        working-directory: environment/dev
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply --auto-approve
+        working-directory: environment/dev
       
       
     
